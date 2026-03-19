@@ -1,6 +1,7 @@
 """Ending evaluation and epilogue generation."""
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from config import Faction, IntelAction
@@ -123,6 +124,8 @@ async def show_ledger_reveal(
     display.show_message("What you did. What they believed. What really happened.\n")
     display.wait_for_enter()
 
+    # Build all chapter texts and prompts upfront
+    chapter_data: list[tuple[int, str, str, str]] = []  # (ch, chapter_text, system, user)
     chapters = sorted(set(e.chapter for e in ledger.entries))
     for ch in chapters:
         entries = ledger.get_entries_by_chapter(ch)
@@ -144,11 +147,21 @@ async def show_ledger_reveal(
                 entry_lines.append(f"  Result: {entry.consequence}")
 
         chapter_text = "\n".join(entry_lines)
-
-        # Generate dramatic reveal narration
         system, user = build_ledger_reveal_prompt(ch, chapter_text, game_state)
-        narration = await conversation_mgr.run_narration(system, user)
+        chapter_data.append((ch, chapter_text, system, user))
 
+    if not chapter_data:
+        return
+
+    # Generate all narrations in parallel
+    display.show_message("[dim]Generating reveal narrations...[/dim]")
+    narrations = await asyncio.gather(
+        *(conversation_mgr.run_narration(system, user)
+          for _, _, system, user in chapter_data)
+    )
+
+    # Display results sequentially with dramatic pacing
+    for (ch, chapter_text, _, _), narration in zip(chapter_data, narrations):
         display.render_ledger_chapter(ch, f"{narration}\n\n{chapter_text}")
         display.wait_for_enter("Press Enter for next chapter...")
 

@@ -13,7 +13,18 @@ from claude_agent_sdk import (
 )
 
 from actions import HELP_TEXT
-from config import MODEL, Faction, IntelAction, MAX_EXCHANGES_PER_SCENE, SceneType
+from config import (
+    MODEL,
+    Faction,
+    IntelAction,
+    MAX_EXCHANGES_PER_SCENE,
+    NARRATION_TIMEOUT,
+    RATE_LIMIT_BACKOFF_FACTOR,
+    RATE_LIMIT_BASE_DELAY,
+    RATE_LIMIT_MAX_DELAY,
+    RATE_LIMIT_MAX_RETRIES,
+    SceneType,
+)
 from display import GameDisplay
 from information_ledger import InformationLedger
 from models import ConversationLog
@@ -38,9 +49,8 @@ class ConversationManager:
 
     async def run_narration(
         self, system_prompt: str, user_prompt: str,
-        max_rate_limit_retries: int = 3,
     ) -> str:
-        """One-shot narration via query() with rate limit retry."""
+        """One-shot narration via query() with timeout and rate limit retry."""
         options = ClaudeAgentOptions(
             system_prompt=system_prompt,
             model=MODEL,
@@ -48,18 +58,35 @@ class ConversationManager:
             permission_mode="bypassPermissions",
         )
 
-        for attempt in range(max_rate_limit_retries + 1):
+        async def _collect() -> str:
             text_parts: list[str] = []
+            async for msg in query(prompt=user_prompt, options=options):
+                if isinstance(msg, AssistantMessage):
+                    for block in msg.content:
+                        if isinstance(block, TextBlock):
+                            text_parts.append(block.text)
+            return "".join(text_parts)
+
+        for attempt in range(RATE_LIMIT_MAX_RETRIES + 1):
             try:
-                async for msg in query(prompt=user_prompt, options=options):
-                    if isinstance(msg, AssistantMessage):
-                        for block in msg.content:
-                            if isinstance(block, TextBlock):
-                                text_parts.append(block.text)
-                return "".join(text_parts)
+                return await asyncio.wait_for(_collect(), timeout=NARRATION_TIMEOUT)
+            except asyncio.TimeoutError:
+                if attempt < RATE_LIMIT_MAX_RETRIES:
+                    wait = min(
+                        RATE_LIMIT_BASE_DELAY * (RATE_LIMIT_BACKOFF_FACTOR ** attempt),
+                        RATE_LIMIT_MAX_DELAY,
+                    )
+                    self.display.show_message(f"[dim]Narration timed out, retrying in {wait:.0f}s...[/dim]")
+                    await asyncio.sleep(wait)
+                    continue
+                return "[The narrator falls silent. The story continues regardless...]"
             except Exception as e:
-                if "rate_limit" in str(e).lower() and attempt < max_rate_limit_retries:
-                    wait = 2 ** attempt * 5
+                if "rate_limit" in str(e).lower() and attempt < RATE_LIMIT_MAX_RETRIES:
+                    wait = min(
+                        RATE_LIMIT_BASE_DELAY * (RATE_LIMIT_BACKOFF_FACTOR ** attempt),
+                        RATE_LIMIT_MAX_DELAY,
+                    )
+                    self.display.show_message(f"[dim]Rate limited, waiting {wait:.0f}s...[/dim]")
                     await asyncio.sleep(wait)
                     continue
                 return (

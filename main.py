@@ -36,7 +36,7 @@ from scene_evaluator import SceneEvaluator
 from intel_leaks import evaluate_intel_leaks
 from verification_engine import run_chapter_verification
 from war_tension import check_war_state
-from world_generator import generate_world, load_world, save_world
+from world_generator import generate_world_phased, load_world, save_world
 
 # Globals for signal handler
 _display: GameDisplay | None = None
@@ -103,10 +103,18 @@ async def main():
 
             # New game — generate world
             display.show_message("\n[bold]Generating world...[/bold]")
-            display.show_message("[dim]This may take a moment while the LLM creates your unique world.[/dim]")
+            display.show_message("[dim]Creating your unique world in stages. This takes 2-5 minutes.[/dim]")
 
             try:
-                world = await generate_world()
+                # Opening narration runs in parallel with Phase 3 —
+                # it only needs Phase 1 data (setting, characters, backgrounds).
+                async def _gen_opening(partial_world):
+                    return await conversation_mgr.run_opening(partial_world)
+
+                world, pregenerated_opening = await generate_world_phased(
+                    display=display,
+                    on_phase1_complete=_gen_opening,
+                )
                 save_world(world, Path("data/world.json"))
                 game_state = initialize_game_state(world)
                 ledger = InformationLedger()
@@ -134,9 +142,12 @@ async def main():
                 )
                 continue
 
-            # Opening narration
-            display.show_message("\n[dim]Generating opening narration...[/dim]")
-            opening = await conversation_mgr.run_opening(world)
+            # Opening narration (use pre-generated if available, else generate now)
+            if pregenerated_opening:
+                opening = pregenerated_opening
+            else:
+                display.show_message("\n[dim]Generating opening narration...[/dim]")
+                opening = await conversation_mgr.run_opening(world)
             display.render_chapter_briefing(0, opening)
             display.wait_for_enter()
             break
@@ -199,6 +210,7 @@ async def main():
     # ── Chapter Loop ──
     _save_pending = (world, game_state)
     previous_consequences: list[str] = []
+    pending_briefing_task: asyncio.Task | None = None
 
     while game_state.chapter <= MAX_CHAPTERS:
         chapter = game_state.chapter
@@ -246,10 +258,14 @@ async def main():
             if r.chapter_visible == game_state.chapter
         ]
 
-        display.show_message(f"\n[dim]Generating Chapter {chapter} briefing...[/dim]")
-        briefing = await conversation_mgr.run_briefing(
-            game_state, world, previous_consequences, visible_reactions
-        )
+        if pending_briefing_task is not None:
+            briefing = await pending_briefing_task
+            pending_briefing_task = None
+        else:
+            display.show_message(f"\n[dim]Generating Chapter {chapter} briefing...[/dim]")
+            briefing = await conversation_mgr.run_briefing(
+                game_state, world, previous_consequences, visible_reactions
+            )
         display.render_chapter_briefing(chapter, briefing)
         display.wait_for_enter()
 
@@ -302,15 +318,22 @@ async def main():
             )
             game_state.conversations.append(conv_log_a)
 
-            # Evaluate scene for memories, slips, and trust changes
+            # Evaluate scene + generate crossover in parallel
+            # (crossover prompt only uses chapter/war_tension/faction names,
+            #  not trust/suspicion, so it's safe to run alongside analysis)
             if conv_log_a.exchanges:
-                display.show_message("[dim]Analyzing conversation...[/dim]")
-                analysis_a = await scene_evaluator.evaluate_scene(
-                    conv_log_a, game_state, world, ledger, characters_a
+                display.show_message("[dim]Analyzing conversation & preparing crossover...[/dim]")
+                analysis_a, crossover_text = await asyncio.gather(
+                    scene_evaluator.evaluate_scene(
+                        conv_log_a, game_state, world, ledger, characters_a
+                    ),
+                    conversation_mgr.run_crossover(game_state),
                 )
                 slip_narratives = scene_evaluator.apply_analysis(analysis_a, game_state)
                 for slip in slip_narratives:
                     display.render_slip_detected(slip)
+            else:
+                crossover_text = await conversation_mgr.run_crossover(game_state)
         else:
             display.show_message(
                 f"\n[dim]No {faction_a.value} characters available for this scene.[/dim]"
@@ -323,6 +346,7 @@ async def main():
                 if intel_obj and intel_obj.source_faction == faction_a:
                     if intel_id not in game_state.known_intel:
                         game_state.known_intel.append(intel_id)
+            crossover_text = await conversation_mgr.run_crossover(game_state)
 
         # ── Phase 3: CROSSOVER (intel board + report builder) ──
         game_state.phase = ChapterPhase.CROSSOVER
@@ -331,9 +355,7 @@ async def main():
         if game_state.first_chapter_hints:
             display.show_tutorial_hint("crossover")
 
-        # Crossover narration
-        display.show_message("\n[dim]Generating crossover narration...[/dim]")
-        crossover_text = await conversation_mgr.run_crossover(game_state)
+        # Crossover narration (already generated in parallel above)
         display.render_crossover(crossover_text)
         display.wait_for_enter()
 
@@ -563,7 +585,6 @@ async def main():
             deaths=chapter_deaths,
             leaks=chapter_leak_descs,
         )
-        display.wait_for_enter()
 
         # ── Auto-save between chapters ──
         auto_save(world, game_state)
@@ -573,10 +594,22 @@ async def main():
         if game_state.first_chapter_hints:
             game_state.first_chapter_hints = False
 
-        # ── Advance to next chapter ──
+        # ── Advance and pre-generate next briefing while player reads summary ──
         if game_state.chapter < MAX_CHAPTERS:
             advance_chapter(game_state, world)
+            next_visible_reactions = [
+                r for r in game_state.faction_reactions
+                if r.chapter_visible == game_state.chapter
+            ]
+            pending_briefing_task = asyncio.create_task(
+                conversation_mgr.run_briefing(
+                    game_state, world, previous_consequences,
+                    next_visible_reactions,
+                )
+            )
+            display.wait_for_enter()
         else:
+            display.wait_for_enter()
             break
 
     # ── Post-Game ──

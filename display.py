@@ -893,6 +893,21 @@ class GameDisplay:
                 )
             )
 
+    # ── World Generation Progress ──
+
+    def render_world_gen_progress(self, step: int, total_steps: int, description: str) -> None:
+        """Show world generation step progress."""
+        bar = "█" * (step * 10 // total_steps) + "░" * (10 - step * 10 // total_steps)
+        self.console.print(
+            f"\n[bold cyan]World Generation [{step}/{total_steps}][/bold cyan] "
+            f"{bar} {description}"
+        )
+
+    def render_world_gen_step_complete(self, step: int, description: str, detail: str = "") -> None:
+        """Show a completed generation step."""
+        suffix = f" — {detail}" if detail else ""
+        self.console.print(f"  [green]✓[/green] {description}{suffix}")
+
     def show_error(self, message: str) -> None:
         self.console.print(f"\n[bold red]Error:[/bold red] {message}")
 

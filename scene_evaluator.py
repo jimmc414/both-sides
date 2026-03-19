@@ -1,6 +1,7 @@
 """Scene Consequence Evaluator — analyzes conversation transcripts for NPC memories, slips, and trust changes."""
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import TYPE_CHECKING
 
@@ -10,6 +11,7 @@ from config import (
     CONVERSATION_QUALITY_MODIFIERS,
     MAX_MEMORIES_PER_CHARACTER,
     MODEL,
+    SCENE_EVAL_TIMEOUT,
     SLIP_SEVERITY_CONSEQUENCES,
     Faction,
 )
@@ -108,30 +110,43 @@ class SceneEvaluator:
             existing_memories=existing_memories,
         )
 
-        # LLM call with structured output
+        # Embed schema in system prompt since output_format doesn't work with Agent SDK
+        schema_json = json.dumps(SceneAnalysis.model_json_schema(), indent=2)
+        system_prompt += f"\n\nJSON Schema for your response:\n```json\n{schema_json}\n```"
+
         options = ClaudeAgentOptions(
             system_prompt=system_prompt,
             model=MODEL,
             allowed_tools=[],
             permission_mode="bypassPermissions",
-            output_format=SceneAnalysis.model_json_schema(),
         )
 
-        text_parts: list[str] = []
-        try:
+        async def _collect() -> str:
+            parts: list[str] = []
             async for msg in query(prompt=user_prompt, options=options):
                 if isinstance(msg, AssistantMessage):
                     for block in msg.content:
                         if isinstance(block, TextBlock):
-                            text_parts.append(block.text)
-        except Exception:
-            return _neutral_analysis(conv_log)
+                            parts.append(block.text)
+            return "".join(parts)
 
-        raw = "".join(text_parts)
+        text_parts: list[str] = []
+        try:
+            raw_text = await asyncio.wait_for(_collect(), timeout=SCENE_EVAL_TIMEOUT)
+            # Strip markdown fences
+            raw_text = raw_text.strip()
+            if raw_text.startswith("```"):
+                lines = raw_text.split("\n")
+                lines = lines[1:]
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]
+                raw_text = "\n".join(lines)
+        except (asyncio.TimeoutError, Exception):
+            return _neutral_analysis(conv_log)
 
         # Parse JSON response
         try:
-            data = json.loads(raw)
+            data = json.loads(raw_text)
             analysis = SceneAnalysis.model_validate(data)
         except (json.JSONDecodeError, Exception):
             return _neutral_analysis(conv_log)

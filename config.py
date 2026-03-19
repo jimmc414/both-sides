@@ -10,6 +10,20 @@ if "ANTHROPIC_API_KEY" in os.environ:
 MODEL = "claude-sonnet-4-20250514"
 
 
+# --- LLM Call Timeouts (seconds) ---
+
+WORLD_GEN_STEP_TIMEOUT = 300     # 5 min per world-gen step (3 steps total)
+NARRATION_TIMEOUT = 120          # 2 min for narration calls
+SCENE_EVAL_TIMEOUT = 90          # 90 sec for scene analysis
+
+# --- Rate-Limit Retry ---
+
+RATE_LIMIT_BASE_DELAY = 60       # base delay in seconds
+RATE_LIMIT_MAX_DELAY = 120       # cap
+RATE_LIMIT_BACKOFF_FACTOR = 1.5  # multiplier per retry
+RATE_LIMIT_MAX_RETRIES = 5       # number of retries
+
+
 # --- Enums ---
 
 class Faction(str, Enum):
