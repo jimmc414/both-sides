@@ -6,6 +6,8 @@ A strategy game where you play a double agent feeding intelligence to two rival 
 
 ## The Game
 
+![Gameplay Mockup](media/gameplay.svg)
+
 You serve as a trusted agent to both the Ironveil Compact and the Embercrown Reach, two nations on the brink of war. Each chapter, you visit one faction to gather intelligence, then cross over to the other to deliver a report. For every piece of intel, you choose:
 
 - **Truth** — builds trust, but accurate military intel accelerates war

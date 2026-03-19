@@ -1,0 +1,74 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Terminal Background -->
+  <rect width="1200" height="800" fill="#121212" rx="10" ry="10" />
+  
+  <!-- Terminal Header Bar -->
+  <rect width="1200" height="30" fill="#2a2a2a" rx="10" ry="10" />
+  <circle cx="20" cy="15" r="6" fill="#ff5f56" />
+  <circle cx="40" cy="15" r="6" fill="#ffbd2e" />
+  <circle cx="60" cy="15" r="6" fill="#27c93f" />
+  <text x="600" y="20" font-family="monospace" font-size="14" fill="#888" text-anchor="middle">double-agent-war-council — python main.py</text>
+
+  <!-- HUD Panel -->
+  <g transform="translate(50, 60)">
+    <rect width="1100" height="100" fill="#1a1a1a" stroke="#444" stroke-width="1" rx="5" />
+    
+    <!-- Ironveil Status -->
+    <text x="20" y="40" font-family="monospace" font-size="18" fill="#6B8EAF" font-weight="bold">Ironveil: Warm</text>
+    <text x="20" y="70" font-family="monospace" font-size="14" fill="#666">  Suspicion: Unsuspected</text>
+
+    <!-- War Tension -->
+    <text x="550" y="40" font-family="monospace" font-size="18" fill="#ffffff" font-weight="bold" text-anchor="middle">War Tension: <tspan fill="#ff4500">███████████████</tspan><tspan fill="#333">░░░░░░░░░░</tspan> 67% (Volatile)</text>
+    <text x="550" y="70" font-family="monospace" font-size="16" fill="#888" text-anchor="middle">Chapter 3/10 — <tspan font-style="italic">Crossover</tspan></text>
+
+    <!-- Embercrown Status -->
+    <text x="1080" y="40" font-family="monospace" font-size="18" fill="#B87333" font-weight="bold" text-anchor="right" text-end="true" text-anchor="end">Embercrown: Cool</text>
+    <text x="1080" y="70" font-family="monospace" font-size="14" fill="#666" text-anchor="end">Suspicion: Scrutiny</text>
+  </g>
+
+  <!-- Scene Panel -->
+  <g transform="translate(50, 180)">
+    <rect width="1100" height="220" fill="#1a1a1a" stroke="#B87333" stroke-width="2" rx="5" />
+    <text x="550" y="0" font-family="monospace" font-size="18" fill="#B87333" font-weight="bold" text-anchor="middle"> — Private Audience — </text>
+    
+    <text x="30" y="50" font-family="monospace" font-size="16" fill="#ccc" font-style="italic">Lord Cassius swirls a glass of amber wine, his eyes never leaving the map of the northern pass.</text>
+    <text x="30" y="80" font-family="monospace" font-size="16" fill="#ccc" font-style="italic">"The Ironveil scouts are moving with uncharacteristic haste," he murmurs. "What have you seen?"</text>
+
+    <text x="30" y="130" font-family="monospace" font-size="18" fill="#ffffff" font-weight="bold">Present:</text>
+    <text x="30" y="165" font-family="monospace" font-size="16" fill="#ffffff">  <tspan font-weight="bold">Lord Cassius</tspan> (High Chancellor) — Friendly</text>
+    <text x="30" y="195" font-family="monospace" font-size="16" fill="#ffffff">  <tspan font-weight="bold">Lady Elara</tspan> (Master of Coin) — Neutral</text>
+  </g>
+
+  <!-- Conversation -->
+  <g transform="translate(50, 430)">
+    <text x="0" y="20" font-family="monospace" font-size="18" fill="#B87333" font-weight="bold">Lord Cassius:</text>
+    <text x="150" y="20" font-family="monospace" font-size="18" fill="#eee">Do you believe the Compact intends to strike before the first frost?</text>
+
+    <text x="0" y="70" font-family="monospace" font-size="18" fill="#ffffff" font-weight="bold">You:</text>
+    <text x="60" y="70" font-family="monospace" font-size="18" fill="#eee">Their mobilization is defensive. They fear your own advancement into Ashenmere.</text>
+  </g>
+
+  <!-- Report Builder Interface -->
+  <g transform="translate(50, 550)">
+    <rect width="1100" height="180" fill="#1a1a1a" stroke="#00ffff" stroke-width="1" rx="5" />
+    <text x="20" y="35" font-family="monospace" font-size="18" fill="#00ffff" font-weight="bold">[IV-002] Southern Pass Maneuvers</text>
+    
+    <text x="30" y="75" font-family="monospace" font-size="18" fill="#ffffff" font-weight="bold">Ironveil is moving 3,000 troops to the southern pass.</text>
+    
+    <text x="30" y="125" font-family="monospace" font-size="16" fill="#888">Significance: <tspan fill="#DAA520">★★★☆☆</tspan>  |  Verifiability: <tspan fill="#6B8EAF">◆◆◆◆◇</tspan></text>
+    
+    <text x="30" y="165" font-family="monospace" font-size="14" fill="#555">  [1] Truthful  [2] Withhold  [3] Distort  [4] Fabricate  [C] Confirm</text>
+    
+    <text x="1080" y="165" font-family="monospace" font-size="14" fill="#ffbd2e" text-anchor="end">Risk: MEDIUM (Internal Verification)</text>
+  </g>
+
+  <!-- Footer Input -->
+  <text x="50" y="780" font-family="monospace" font-size="16" fill="#aaa">Address: [1] Lord Cassius, [2] Lady Elara | [done] end scene | [board] intel board | [save] | [help]</text>
+  <text x="1080" y="780" font-family="monospace" font-size="16" fill="#00ff00" text-anchor="end">❯ _</text>
+</svg>
