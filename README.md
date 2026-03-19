@@ -1,5 +1,7 @@
 # Both Sides
 
+![Both Sides Header](media/header.svg)
+
 A strategy game where you play a double agent feeding intelligence to two rival factions. What you tell each side — truth, lies, or silence — shapes troop movements, diplomatic crises, and political purges. Then the factions act on your intelligence, and the consequences compound.
 
 ## The Game
