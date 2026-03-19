@@ -1,12 +1,12 @@
 # Both Sides
 
-![Both Sides Header](media/header.svg)
+![Both Sides Header](./media/header.svg)
 
 A strategy game where you play a double agent feeding intelligence to two rival factions. What you tell each side — truth, lies, or silence — shapes troop movements, diplomatic crises, and political purges. Then the factions act on your intelligence, and the consequences compound.
 
 ## The Game
 
-![Gameplay Mockup](media/gameplay.svg)
+![Gameplay Mockup](./media/gameplay.svg)
 
 You serve as a trusted agent to both the Ironveil Compact and the Embercrown Reach, two nations on the brink of war. Each chapter, you visit one faction to gather intelligence, then cross over to the other to deliver a report. For every piece of intel, you choose:
 
