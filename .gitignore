@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+data/
+.env
+*.egg-info/
+dist/
+build/
+.claude/
+*.docx
+BOTH_SIDES_BUILD_PROMPT.md
+gameplay_report.md
+debug_worldgen.py
+generate_test_world.py
