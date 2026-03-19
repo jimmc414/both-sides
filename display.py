@@ -77,6 +77,11 @@ class GameDisplay:
     def __init__(self):
         self.console = Console()
         self._current_faction: Faction | None = None
+        self._logger = None  # Optional GameLogger
+
+    def set_logger(self, logger) -> None:
+        """Attach a GameLogger to mirror all output."""
+        self._logger = logger
 
     def set_theme(self, faction: Faction | None) -> None:
         """Switch color palette for the current faction."""
@@ -115,6 +120,16 @@ class GameDisplay:
 
     def render_hud(self, game_state: GameState, phase_label: str = "") -> None:
         """Show war tension bar, faction trust/suspicion as descriptors."""
+        if self._logger:
+            self._logger.log_state(
+                chapter=game_state.chapter,
+                phase=phase_label,
+                war_tension=game_state.war_tension,
+                iv_trust=game_state.ironveil_trust,
+                iv_susp=game_state.ironveil_suspicion,
+                ec_trust=game_state.embercrown_trust,
+                ec_susp=game_state.embercrown_suspicion,
+            )
         tension_label, tension_color = get_tension_descriptor(game_state.war_tension)
 
         # Build tension bar
@@ -174,6 +189,9 @@ class GameDisplay:
     # ── Chapter Briefing ──
 
     def render_chapter_briefing(self, chapter: int, narrative: str) -> None:
+        if self._logger:
+            self._logger.section(f"Chapter {chapter} — Briefing")
+            self._logger.log(narrative)
         color = self._faction_color()
         self.console.print()
         self.console.print(
@@ -190,6 +208,8 @@ class GameDisplay:
     def render_conversation(
         self, speaker: str, text: str, faction: Faction | None = None
     ) -> None:
+        if self._logger:
+            self._logger.log(f"{speaker}: {text}")
         color = self._faction_color(faction)
         self.console.print()
         self.console.print(f"[bold {color}]{speaker}:[/bold {color}] {text}")
@@ -205,6 +225,15 @@ class GameDisplay:
 
         characters: list of (name, role, trust_desc, suspicion_desc, alive)
         """
+        if self._logger:
+            self._logger.subsection(scene_label)
+            self._logger.log(scene_description)
+            self._logger.log("Present:")
+            for name, role, trust_desc, susp_desc, alive in characters:
+                if alive:
+                    self._logger.log(f"  {name} ({role}) — {trust_desc}, {susp_desc}")
+            self._logger.blank()
+
         color = self._faction_color(faction)
 
         # Character roster with trust/suspicion descriptors
@@ -241,11 +270,16 @@ class GameDisplay:
         )
 
     def render_player_input(self, text: str) -> None:
+        if self._logger:
+            self._logger.log(f"You: {text}")
         self.console.print(f"\n[bold white]You:[/bold white] {text}")
 
     # ── Crossover ──
 
     def render_crossover(self, narrative: str) -> None:
+        if self._logger:
+            self._logger.subsection("Crossing Over")
+            self._logger.log(narrative)
         self.console.print()
         self.console.print(
             Panel(
@@ -427,6 +461,14 @@ class GameDisplay:
         self, reactions: list, game_state: GameState
     ) -> None:
         """Show THE WORLD RESPONDS panel with faction actions from previous intel."""
+        if self._logger:
+            self._logger.subsection("THE WORLD RESPONDS")
+            for reaction in reactions:
+                self._logger.log(
+                    f"  [{reaction.acting_faction.upper()}] "
+                    f"{reaction.reaction_description}"
+                )
+            self._logger.blank()
         lines: list[str] = []
         for reaction in reactions:
             faction_color = self._faction_color(
@@ -453,6 +495,10 @@ class GameDisplay:
 
     def render_reaction_failure(self, narratives: list[str]) -> None:
         """Show CONSEQUENCES OF DECEPTION panel when false-intel reactions are discovered."""
+        if self._logger:
+            self._logger.subsection("CONSEQUENCES OF DECEPTION")
+            for n in narratives:
+                self._logger.log(f"  {n}")
         body = "\n\n".join(f"  {n}" for n in narratives)
         self.console.print()
         self.console.print(
@@ -470,6 +516,14 @@ class GameDisplay:
         self, leak_events: list, game_state: GameState
     ) -> None:
         """Show THE WEB UNRAVELS panel when leaks are discovered."""
+        if self._logger:
+            self._logger.subsection("THE WEB UNRAVELS")
+            for event in leak_events:
+                cascade_tag = f" [CASCADE depth {event.cascade_depth}]" if event.is_cascade else ""
+                self._logger.log(
+                    f"  {event.intel_id} — discovered by "
+                    f"{event.discovering_faction} (prob {event.probability:.0%}){cascade_tag}"
+                )
         lines: list[str] = []
         for event in leak_events:
             cascade_tag = f" [CASCADE depth {event.cascade_depth}]" if event.is_cascade else ""
@@ -518,6 +572,25 @@ class GameDisplay:
         deaths: list of character names who died this chapter
         leaks: list of leak descriptions
         """
+        if self._logger:
+            self._logger.section(f"Chapter {chapter} Summary")
+            for intel_id, action_label, target in report_actions:
+                self._logger.log(f"  {intel_id} -> {target}: {action_label.upper()}")
+            for faction_name, (before, after, delta) in trust_deltas.items():
+                sign = "+" if delta >= 0 else ""
+                self._logger.log(f"  {faction_name} Trust: {before} -> {after} ({sign}{delta})")
+            for faction_name, (before, after, delta) in suspicion_deltas.items():
+                sign = "+" if delta >= 0 else ""
+                self._logger.log(f"  {faction_name} Suspicion: {before} -> {after} ({sign}{delta})")
+            tension_delta = war_tension_after - war_tension_before
+            if tension_delta:
+                sign = "+" if tension_delta > 0 else ""
+                self._logger.log(f"  War Tension: {war_tension_before}% -> {war_tension_after}% ({sign}{tension_delta})")
+            for name in deaths:
+                self._logger.log(f"  DEATH: {name}")
+            for leak in leaks:
+                self._logger.log(f"  LEAK: {leak}")
+
         lines: list[str] = []
 
         # Intel actions taken
@@ -583,6 +656,9 @@ class GameDisplay:
     # ── Fallout ──
 
     def render_fallout(self, narrative: str) -> None:
+        if self._logger:
+            self._logger.subsection("Fallout")
+            self._logger.log(narrative)
         self.console.print()
         self.console.print(
             Panel(
@@ -596,6 +672,13 @@ class GameDisplay:
     # ── Special Sequences ──
 
     def render_war_outbreak(self) -> None:
+        if self._logger:
+            self._logger.section("WAR HAS BROKEN OUT")
+            self._logger.log(
+                "The drums of war echo across Ashenmere. "
+                "Armies mobilize on both sides of the border. "
+                "Your intelligence — true and false — has shaped this moment."
+            )
         self.console.print()
         self.console.print(
             Panel(
@@ -609,6 +692,13 @@ class GameDisplay:
         )
 
     def render_peace_ceremony(self) -> None:
+        if self._logger:
+            self._logger.section("PEACE HAS BEEN ACHIEVED")
+            self._logger.log(
+                "Against all odds, the nations step back from the brink. "
+                "Diplomats shake hands in Ashenmere. "
+                "Your work in the shadows made this possible — or did it?"
+            )
         self.console.print()
         self.console.print(
             Panel(
@@ -624,6 +714,10 @@ class GameDisplay:
     # ── Ledger Reveal ──
 
     def render_ledger_chapter(self, chapter: int, entries_text: str) -> None:
+        if self._logger:
+            self._logger.subsection(f"Chapter {chapter} — The Truth")
+            from game_logger import strip_markup
+            self._logger.log(strip_markup(entries_text))
         self.console.print()
         self.console.print(
             Panel(
@@ -639,6 +733,12 @@ class GameDisplay:
     def render_ending(
         self, political: str, personal: str, narrative: str
     ) -> None:
+        if self._logger:
+            self._logger.section("EPILOGUE")
+            self._logger.log(f"Political Outcome: {political}")
+            self._logger.log(f"Personal Fate: {personal}")
+            self._logger.blank()
+            self._logger.log(narrative)
         self.console.print()
         self.console.print(
             Panel(
@@ -653,6 +753,10 @@ class GameDisplay:
 
     def render_stats(self, stats: dict) -> None:
         """Post-game statistics."""
+        if self._logger:
+            self._logger.subsection("Your Legacy — Final Statistics")
+            for key, val in stats.items():
+                self._logger.log(f"  {key}: {val}")
         table = Table(title="Your Legacy", box=box.ROUNDED)
         table.add_column("Stat", style="bold")
         table.add_column("Value", justify="right")
@@ -664,6 +768,9 @@ class GameDisplay:
     # ── Slip Detection ──
 
     def render_slip_detected(self, description: str) -> None:
+        if self._logger:
+            from game_logger import strip_markup
+            self._logger.log(f"  [SLIP DETECTED] {strip_markup(description)}")
         self.console.print(
             Panel(
                 f"[bold red]Something you said caught attention.[/bold red]\n{description}",
@@ -675,7 +782,10 @@ class GameDisplay:
     # ── Utility ──
 
     def prompt_input(self, prompt_text: str = "> ") -> str:
-        return self.console.input(f"[bold]{prompt_text}[/bold]")
+        response = self.console.input(f"[bold]{prompt_text}[/bold]")
+        if self._logger:
+            self._logger.log_player_input(prompt_text, response)
+        return response
 
     def prompt_choice(self, options: list[str]) -> str:
         """Prompt with numbered options, return selected option text."""

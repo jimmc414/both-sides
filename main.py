@@ -17,6 +17,7 @@ if "ANTHROPIC_API_KEY" in os.environ:
 from config import ChapterPhase, DIFFICULTY_MODES, Faction, FACTION_COLORS, IntelAction, MAX_CHAPTERS
 from conversation_engine import ConversationManager
 from display import GameDisplay
+from game_logger import GameLogger
 from endings import evaluate_ending, run_ending_scene, show_ledger_reveal
 from information_ledger import InformationLedger
 from intelligence_board import IntelligenceBoard
@@ -40,10 +41,17 @@ from world_generator import generate_world, load_world, save_world
 # Globals for signal handler
 _display: GameDisplay | None = None
 _save_pending: tuple | None = None
+_logger: GameLogger | None = None
 
 
 def _signal_handler(sig, frame):
     """Handle Ctrl+C — offer save before quit."""
+    if _logger:
+        try:
+            _logger.section("SESSION INTERRUPTED (Ctrl+C)")
+            _logger.close()
+        except Exception:
+            pass
     if _display:
         _display.console.print("\n\n[bold yellow]Interrupted![/bold yellow]")
         if _save_pending:
@@ -59,11 +67,16 @@ def _signal_handler(sig, frame):
 
 
 async def main():
-    global _display, _save_pending
+    global _display, _save_pending, _logger
 
     display = GameDisplay()
     _display = display
     signal.signal(signal.SIGINT, _signal_handler)
+
+    logger = GameLogger()
+    _logger = logger
+    display.set_logger(logger)
+    display.show_message(f"[dim]Session log: {logger.path}[/dim]")
 
     conversation_mgr = ConversationManager(display)
     scene_evaluator = SceneEvaluator(display)
@@ -108,6 +121,9 @@ async def main():
                 game_state.first_chapter_hints = diff_cfg["hints"]
 
                 display.show_message(f"[green]World generated successfully! Difficulty: {selected_difficulty.title()}[/green]")
+                logger.section(f"New Game — Difficulty: {selected_difficulty.title()}")
+                logger.log(f"Inciting Incident: {world.inciting_incident}")
+                logger.log(f"Characters: {', '.join(c.name for c in world.characters)}")
             except Exception as e:
                 display.show_error(
                     f"World generation failed: {type(e).__name__}: {e}\n"
@@ -167,6 +183,7 @@ async def main():
                 f"[green]Loaded: Chapter {game_state.chapter}, "
                 f"Tension {game_state.war_tension}%[/green]"
             )
+            logger.section(f"Loaded Save — Chapter {game_state.chapter}")
             break
 
         elif choice in ("q", "3", "quit"):
@@ -576,6 +593,9 @@ async def main():
 
     display.show_message("\n[bold]Thank you for playing BOTH SIDES.[/bold]")
     display.show_message("[dim]Your choices mattered. Every one of them.[/dim]\n")
+
+    logger.close()
+    display.show_message(f"[dim]Full session log saved to: {logger.path}[/dim]")
 
 
 if __name__ == "__main__":
